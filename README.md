@@ -1,4 +1,4 @@
-# # Not Uygulaması 
+# Not Uygulaması 
 
 Genel bir not uygulaması. Not ekleyebilir, listeleyebilir, düzenleyebilir ve silebilirsiniz. Veriler tarayıcıda **localStorage** ile saklanır.
 
@@ -38,7 +38,7 @@ NoteApp/
 
 ## Kullanılan teknolojiler
 
-- **HTML**
+- **HTML5**
 - **CSS3** — Layout, kartlar, form
 - **Vanilla JavaScript** — CRUD, localStorage
 

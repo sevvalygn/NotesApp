@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotesApp</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #212529;
+      margin: 0;
+      padding: 2rem 1rem;
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .app-title {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 0 0 1.5rem 0;
+      color: #111;
+    }
+    .search-wrap {
+      margin-bottom: 1rem;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    .search-wrap input::placeholder { color: #999; }
+    .search-wrap input:focus {
+      outline: none;
+      border-color: #0d6efd;
+    }
+    .note-entry {
+      margin-bottom: 1rem;
+    }
+    .note-entry textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 0.75rem 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .note-entry textarea::placeholder { color: #999; }
+    .note-entry textarea:focus {
+      outline: none;
+      border-color: #0d6efd;
+    }
+    .add-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .renk-secim {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .renk-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+      position: relative;
+      background: #ccc;
+    }
+    .renk-btn:hover { transform: scale(1.08); }
+    .renk-btn.secili {
+      border-color: #333;
+      box-shadow: 0 0 0 2px #fff;
+    }
+    .renk-btn.secili::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      text-shadow: 0 0 1px #000;
+    }
+    .btn-add {
+      padding: 0.6rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #198754;
+      color: #fff;
+    }
+    .btn-add:hover { background: #157347; }
+    .notes-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .note-card {
+      min-width: 180px;
+      max-width: 240px;
+      flex: 1 1 180px;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .note-card h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      color: #212529;
+    }
+    .note-card p {
+      margin: 0 0 0.75rem 0;
+      font-size: 0.9rem;
+      color: #444;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .note-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .btn {
+      padding: 0.35rem 0.65rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .btn-edit { background: #e9ecef; color: #333; }
+    .btn-edit:hover { background: #dee2e6; }
+    .btn-delete { background: #dc3545; color: #fff; }
+    .btn-delete:hover { background: #bb2d3b; }
+    .empty-state, .filter-empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1 class="app-title">NotesApp</h1>
+
+    <div class="search-wrap">
+      <input type="text" id="note-filtre" placeholder="Search...">
+    </div>
+
+    <form id="note-form">
+      <input type="hidden" id="note-id" value="">
+      <div class="note-entry">
+        <textarea id="note-icerik" placeholder="Enter your note here..."></textarea>
+      </div>
+      <div class="add-row">
+        <div class="renk-secim" id="renk-secim"></div>
+        <button type="submit" class="btn-add" id="btn-submit">ADD</button>
+      </div>
+    </form>
+
+    <div class="notes-list" id="notes-list"></div>
+    <div class="empty-state hidden" id="empty-state">Henüz not yok.</div>
+    <div class="filter-empty-state hidden" id="filter-empty-state">Aramanızla eşleşen not bulunamadı.</div>
+  </div>
+
+  <script>
+    var STORAGE_KEY = 'noteAppNotlar';
+    var RENKLER = ['#e83e8c', '#ffc107', '#0d6efd', '#6f42c1', '#198754'];
+    var VARSAYILAN_RENK = '#198754';
+    var secilenRenk = VARSAYILAN_RENK;
+
+    function getNotlar() {
+      var json = localStorage.getItem(STORAGE_KEY);
+      return json ? JSON.parse(json) : [];
+    }
+
+    function setNotlar(notlar) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notlar));
+    }
+
+    function renkSeciminiOlustur() {
+      var wrap = document.getElementById('renk-secim');
+      wrap.innerHTML = RENKLER.map(function(hex) {
+        return '<button type="button" class="renk-btn ' + (hex === VARSAYILAN_RENK ? 'secili' : '') + '" data-renk="' + hex + '" style="background:' + hex + '"></button>';
+      }).join('');
+      wrap.querySelectorAll('.renk-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          wrap.querySelectorAll('.renk-btn').forEach(function(b) { b.classList.remove('secili'); });
+          btn.classList.add('secili');
+          secilenRenk = btn.dataset.renk;
+        });
+      });
+    }
+
+    function getNotBaslik(not, index) {
+      if (not.baslik && not.baslik.trim()) return not.baslik;
+      var icerik = (not.icerik || '').trim();
+      if (icerik) {
+        var firstLine = icerik.split('\n')[0].trim();
+        if (firstLine.length > 30) firstLine = firstLine.slice(0, 27) + '...';
+        return firstLine || 'Note ' + (index + 1);
+      }
+      return 'Note ' + (index + 1);
+    }
+
+    function renderNotlar() {
+      var notlar = getNotlar();
+      var filtre = (document.getElementById('note-filtre').value || '').trim().toLowerCase();
+      if (filtre) {
+        notlar = notlar.filter(function(n) {
+          var baslik = (n.baslik || '').toLowerCase();
+          var icerik = (n.icerik || '').toLowerCase();
+          return baslik.indexOf(filtre) >= 0 || icerik.indexOf(filtre) >= 0;
+        });
+      }
+      var listEl = document.getElementById('notes-list');
+      var emptyEl = document.getElementById('empty-state');
+      var filterEmptyEl = document.getElementById('filter-empty-state');
+      var tumNotlar = getNotlar();
+
+      if (tumNotlar.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        filterEmptyEl.classList.add('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+      if (notlar.length === 0) {
+        listEl.innerHTML = '';
+        filterEmptyEl.classList.remove('hidden');
+        return;
+      }
+      filterEmptyEl.classList.add('hidden');
+      listEl.innerHTML = notlar.map(function(n, i) {
+        var renk = n.renk || VARSAYILAN_RENK;
+        var baslik = getNotBaslik(n, i);
+        var icerik = (n.icerik || '').trim();
+        return '<div class="note-card" data-id="' + n.id + '" style="background:' + renk + '22; border:1px solid ' + renk + '44;">' +
+          '<h3>' + escapeHtml(baslik) + '</h3>' +
+          '<p>' + escapeHtml(icerik ? icerik.slice(0, 200) + (icerik.length > 200 ? '...' : '') : '') + '</p>' +
+          '<div class="note-actions">' +
+          '<button type="button" class="btn btn-edit" data-id="' + n.id + '">Düzenle</button>' +
+          '<button type="button" class="btn btn-delete" data-id="' + n.id + '">Sil</button>' +
+          '</div></div>';
+      }).join('');
+
+      listEl.querySelectorAll('.btn-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() { duzenle(parseInt(btn.dataset.id, 10)); });
+      });
+      listEl.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() { sil(parseInt(btn.dataset.id, 10)); });
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renkSeciliYap(hex) {
+      secilenRenk = hex || VARSAYILAN_RENK;
+      var wrap = document.getElementById('renk-secim');
+      if (!wrap) return;
+      wrap.querySelectorAll('.renk-btn').forEach(function(btn) {
+        btn.classList.toggle('secili', btn.dataset.renk === secilenRenk);
+      });
+    }
+
+    function formuTemizle() {
+      document.getElementById('note-id').value = '';
+      document.getElementById('note-icerik').value = '';
+      renkSeciliYap(VARSAYILAN_RENK);
+    }
+
+    function duzenle(id) {
+      var notlar = getNotlar();
+      var not = notlar.find(function(n) { return n.id === id; });
+      if (!not) return;
+      document.getElementById('note-id').value = not.id;
+      document.getElementById('note-icerik').value = (not.baslik ? not.baslik + '\n' : '') + (not.icerik || '');
+      renkSeciliYap(not.renk || VARSAYILAN_RENK);
+      document.getElementById('note-icerik').focus();
+    }
+
+    function sil(id) {
+      if (!confirm('Bu notu silmek istediğinize emin misiniz?')) return;
+      var notlar = getNotlar().filter(function(n) { return n.id !== id; });
+      setNotlar(notlar);
+      renderNotlar();
+      if (document.getElementById('note-id').value === String(id)) formuTemizle();
+    }
+
+    document.getElementById('note-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var idEl = document.getElementById('note-id');
+      var metin = document.getElementById('note-icerik').value.trim();
+      var notlar = getNotlar();
+      var id = idEl.value ? parseInt(idEl.value, 10) : null;
+      var baslik = '';
+      var icerik = metin;
+      if (metin.indexOf('\n') >= 0) {
+        baslik = metin.split('\n')[0].trim();
+        icerik = metin.slice(baslik.length).trim();
+      } else if (metin.length > 60) {
+        icerik = metin;
+      } else {
+        baslik = metin;
+        icerik = '';
+      }
+
+      if (id) {
+        notlar = notlar.map(function(n) {
+          if (n.id === id) return { id: n.id, baslik: baslik, icerik: icerik, tarih: n.tarih, renk: secilenRenk };
+          return n;
+        });
+      } else {
+        var newId = notlar.length ? Math.max.apply(null, notlar.map(function(n) { return n.id; })) + 1 : 1;
+        notlar.push({ id: newId, baslik: baslik, icerik: icerik, tarih: new Date().toISOString(), renk: secilenRenk });
+      }
+      setNotlar(notlar);
+      renderNotlar();
+      formuTemizle();
+    });
+
+    document.getElementById('note-filtre').addEventListener('input', renderNotlar);
+
+    renkSeciminiOlustur();
+    renderNotlar();
+  </script>
+</body>
+</html>
